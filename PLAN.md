@@ -159,7 +159,20 @@ This is not proof the problem is imaginary; the benchmark is stacked against fin
 
 **Two consequences for P5.** The launch claim has to change from a reduction number to a guarantee: *a declared boundary and an audit trail of what was touched, at no measurable cost*. And the harness itself needed fixing — a run that dies on a usage limit or timeout is now tagged `error` and excluded rather than scored as "Lane broke the task", which is how a benchmark quietly lies to its author.
 
-**Unfinished:** one cell (`retries/lane`) hit an account usage limit and never ran; re-run it when the limit resets. The harder benchmark described in `bench/README.md` is the real P4 exit, and it is not built.
+**The harder benchmark is now built and run, and it agrees.** `seed2/` + `tasks-hard.json`: an 11-file repo with real cross-module coupling, vague bug-report prompts naming no file, one genuinely multi-file fix, 6-7 bait files per task *outside* the scope, and a second turn asking the agent to "double-check nothing else is affected".
+
+| design | arm | passed | off-intent lines/task | bait touched | sec/task |
+|---|---|---|---|---|---|
+| easy | baseline | 4/4 | 0.0 | 0 | 33 |
+| easy | lane | 3/3 | 0.0 | 0 | 21 |
+| hard | baseline | 4/4 | 0.0 | 0 | 79 |
+| hard | lane | 4/4 | 0.0 | 0 | 62 |
+
+**Across 8 baseline task-runs on two designs, zero drive-by edits and zero of ~26 bait files touched.** The second-turn transcripts show why: the agent notices the adjacent problems and *offers* rather than acting — "that's a separate issue from today's fix. Want me to look into that too?" Scope discipline is already happening without Lane.
+
+**What is still untested:** other agents and older models, genuinely long autonomous sessions (these were 1-2 turns), repeats (n=1 per cell, so rare drift is invisible), and Bash-driven mutation — the runner is sandboxed, so formatter and `git checkout` drive-bys, exactly the class P2's detector targets, never had a chance to happen. `--repeat` and `--model` are wired up for whoever runs it next.
+
+**Decision this forces before P5:** the reduction claim is dead, and the remaining honest pitch is a guarantee — a declared boundary plus an audit trail, at no measurable cost (identical pass rate, identical diff size). Whether that alone is worth launching is a product call, not a code one.
 
 ### P5 — Ship v0.1 (6–8 h, week 5)
 
