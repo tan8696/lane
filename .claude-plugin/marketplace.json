@@ -1,0 +1,11 @@
+{
+  "name": "lane-marketplace",
+  "owner": { "name": "Tan" },
+  "plugins": [
+    {
+      "name": "lane",
+      "source": "./plugins/lane",
+      "description": "Task-scoped edit guard: the agent edits only what the task needs."
+    }
+  ]
+}

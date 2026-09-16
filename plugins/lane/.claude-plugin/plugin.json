@@ -1,0 +1,8 @@
+{
+  "name": "lane",
+  "version": "0.1.0",
+  "description": "Task-scoped edit guard for Claude Code: declare scope, enforce it on every write, audit the diff at the end.",
+  "author": { "name": "Tan" },
+  "license": "MIT",
+  "keywords": ["hooks", "scope", "guardrails", "diff", "review"]
+}

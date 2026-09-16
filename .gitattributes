@@ -1,0 +1,2 @@
+# Windows-authored repo: keep LF in the tree and on checkout, or hooks/run.sh breaks under sh.
+* text=auto eol=lf

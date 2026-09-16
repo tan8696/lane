@@ -1,0 +1,124 @@
+"""Simulates Claude Code hook calls against a temp git repo. Run: python3 -m unittest tests/test_lane.py"""
+import json, os, subprocess, sys, tempfile, unittest
+from pathlib import Path
+
+S = Path(__file__).resolve().parent.parent / "plugins/lane/scripts"
+
+
+def run(script, payload=None, cwd=None, args=()):
+    return subprocess.run([sys.executable, str(S / script), *args], input=json.dumps(payload or {}),
+                          capture_output=True, text=True, encoding="utf-8", cwd=cwd)
+
+
+class LaneTest(unittest.TestCase):
+    def setUp(self):
+        self.d = Path(tempfile.mkdtemp())
+        for c in (["init", "-q"], ["config", "user.email", "t@t"], ["config", "user.name", "t"]):
+            subprocess.run(["git", *c], cwd=self.d, check=True)
+        (self.d / "src").mkdir()
+        (self.d / "src/auth.py").write_text("x = 1\n")
+        (self.d / "src/db.py").write_text("y = 2\n")
+        subprocess.run(["git", "add", "."], cwd=self.d, check=True)
+        subprocess.run(["git", "commit", "-qm", "init"], cwd=self.d, check=True)
+        self.assertEqual(run("lane.py", cwd=self.d, args=["init"]).returncode, 0)  # opt this repo in
+
+    def pre(self, tool, ti, sid=None):
+        payload = {"tool_name": tool, "tool_input": ti, "cwd": str(self.d)}
+        if sid:
+            payload["session_id"] = sid
+        out = run("pre_tool.py", payload).stdout
+        return json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else "pass"
+
+    def report(self):
+        return (self.d / ".git/lane/report.md").read_text(encoding="utf-8")
+
+    def declare(self, *allow):
+        a = ["declare", "--intent", "fix login"] + [x for g in allow for x in ("--allow", g)]
+        self.assertEqual(run("lane.py", cwd=self.d, args=a).returncode, 0)
+
+    def test_no_scope_denies(self):
+        self.assertEqual(self.pre("Edit", {"file_path": str(self.d / "src/auth.py")}), "deny")
+
+    def test_scope_enforced(self):
+        self.declare("src/auth.py")
+        self.assertEqual(self.pre("Edit", {"file_path": str(self.d / "src/auth.py")}), "pass")
+        self.assertEqual(self.pre("Edit", {"file_path": "src/db.py"}), "ask")
+        self.assertEqual(self.pre("Write", {"file_path": str(self.d / ".git/lane/scope.json")}), "deny")
+        self.assertEqual(self.pre("Bash", {"command": "echo hi > src/db.py"}), "ask")
+        self.assertEqual(self.pre("Bash", {"command": "sed -i 's/a/b/' src/db.py && ls"}), "ask")
+        self.assertEqual(self.pre("Bash", {"command": "pytest -q 2>&1 | tail -5"}), "pass")
+        self.assertEqual(self.pre("Bash", {"command": "python3 /x/lane.py expand --allow a --reason b"}), "ask")
+
+    def test_off_unless_opted_in(self):
+        run("lane.py", cwd=self.d, args=["off"])
+        self.assertEqual(self.pre("Edit", {"file_path": str(self.d / "src/auth.py")}), "pass")
+        self.assertEqual(run("session_start.py", {"cwd": str(self.d)}).stdout.strip(), "")
+
+    def test_star_does_not_cross_directories(self):
+        self.declare("src/*.py")
+        self.assertEqual(self.pre("Edit", {"file_path": str(self.d / "src/auth.py")}), "pass")
+        self.assertEqual(self.pre("Edit", {"file_path": str(self.d / "src/deep/mod.py")}), "ask")
+        self.declare("src/**/*.py")
+        self.assertEqual(self.pre("Edit", {"file_path": str(self.d / "src/deep/mod.py")}), "pass")
+
+    def test_folder_scope(self):
+        self.declare("src/")
+        self.assertEqual(self.pre("Write", {"file_path": str(self.d / "src/new/mod.py")}), "pass")
+        self.assertEqual(self.pre("Write", {"file_path": str(self.d / "README.md")}), "ask")
+
+    def test_stop_audit(self):
+        (self.d / "notes.txt").write_text("user wip\n")  # pre-existing user change
+        self.declare("src/auth.py")
+        (self.d / "src/auth.py").write_text("x = 42\n")
+        (self.d / "src/db.py").write_text("y = 2   \n")  # sneaky out-of-scope edit
+        out = run("stop_audit.py", {"cwd": str(self.d)}).stdout
+        self.assertEqual(json.loads(out)["decision"], "block")
+        self.assertIn("src/db.py", out)
+        self.assertNotIn("notes.txt", out)
+        again = run("stop_audit.py", {"cwd": str(self.d), "stop_hook_active": True}).stdout
+        self.assertEqual(again.strip(), "")
+
+    def test_approved_outside_not_blocked(self):
+        self.declare("src/auth.py")
+        (self.d / "src/db.py").write_text("y = 3\n")
+        run("post_tool.py", {"tool_name": "Edit", "tool_input": {"file_path": "src/db.py"}, "cwd": str(self.d)})
+        self.assertEqual(run("stop_audit.py", {"cwd": str(self.d)}).stdout.strip(), "")
+        self.assertIn("Approved outside scope (1)", run("lane.py", cwd=self.d, args=["audit"]).stdout)
+
+    def test_scope_is_session_bound(self):
+        self.declare("src/auth.py")
+        f = {"file_path": str(self.d / "src/auth.py")}
+        self.assertEqual(self.pre("Edit", f, sid="sess-A"), "pass")  # stamps the scope
+        self.assertEqual(self.pre("Edit", f, sid="sess-B"), "deny")  # a second session can't inherit
+        self.assertEqual(self.pre("Edit", f, sid="sess-A"), "pass")  # owner still works
+
+    def test_bash_detects_formatters_and_git(self):
+        self.declare("src/auth.py")
+        self.assertEqual(self.pre("Bash", {"command": "black ."}), "ask")
+        self.assertEqual(self.pre("Bash", {"command": "prettier --write src/db.py"}), "ask")
+        self.assertEqual(self.pre("Bash", {"command": "git checkout -- src/db.py"}), "ask")
+        self.assertEqual(self.pre("Bash", {"command": "sudo rm src/db.py"}), "ask")
+        self.assertEqual(self.pre("Bash", {"command": "git checkout -b feature"}), "pass")  # a branch
+        self.assertEqual(self.pre("Bash", {"command": "black --check ."}), "pass")  # reads only
+        self.assertEqual(self.pre("Bash", {"command": "npm test"}), "pass")
+
+    def test_lockfiles_ignored_by_audit(self):
+        self.declare("src/auth.py")
+        (self.d / "src/auth.py").write_text("x = 42\n")
+        (self.d / "package-lock.json").write_text('{"a": 1}\n')
+        self.assertEqual(run("stop_audit.py", {"cwd": str(self.d)}).stdout.strip(), "")  # no block
+        self.assertIn("package-lock.json", self.report())  # listed, as ignored
+
+    def test_whitespace_only_warns_but_does_not_block(self):
+        self.declare("src/auth.py")
+        (self.d / "src/auth.py").write_text("x = 1   \n")  # in scope, whitespace-only
+        self.assertEqual(run("stop_audit.py", {"cwd": str(self.d)}).stdout.strip(), "")
+        self.assertIn("Whitespace-only (1)", self.report())
+
+    def test_session_start(self):
+        out = run("session_start.py", {"cwd": str(self.d)}).stdout
+        self.assertIn("declare --intent", out)
+
+
+if __name__ == "__main__":
+    unittest.main()
