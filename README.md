@@ -80,6 +80,23 @@ Store alias stub (which sits on `PATH` but may refuse to run).
 python -m unittest discover -s tests -t tests -v
 ```
 
+## What it measurably does
+
+Benchmarked with `bench/` — each task run twice, bare and under Lane, in a throwaway seeded repo:
+
+| design | arm | passed | off-intent lines/task | bait files touched | sec/task |
+|---|---|---|---|---|---|
+| easy | baseline | 4/4 | 0.0 | 0 | 33 |
+| easy | lane | 3/3 | 0.0 | 0 | 21 |
+| hard | baseline | 4/4 | 0.0 | 0 | 79 |
+| hard | lane | 4/4 | 0.0 | 0 | 62 |
+
+**Lane cost nothing measurable** — same pass rate, same diff size. It also produced no measurable
+*reduction*: across 8 baseline runs the unguarded agent made zero drive-by edits and touched none of
+the ~26 bait files planted for it. On this evidence the honest claim is a guarantee — a declared
+boundary and an audit trail of what was touched — not a smaller diff. Read `bench/README.md` before
+quoting any of this; it lists what the benchmark does not yet cover.
+
 ## Known limits
 
 - **A guardrail, not a sandbox.** It keeps a cooperative but sloppy agent in line. `python -c` can
