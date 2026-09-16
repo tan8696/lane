@@ -1,0 +1,50 @@
+[
+  {
+    "id": "auth",
+    "prompt": "Authentication is backwards in this repo: logged-out visitors are treated as authenticated and real users are rejected. Can you fix it?",
+    "intent": "fix inverted auth check",
+    "allow": [
+      "src/auth.py"
+    ],
+    "expect_files": [
+      "src/auth.py"
+    ],
+    "check": "from src.auth import check_auth; assert check_auth({'id': 1}) is True; assert check_auth(None) is False"
+  },
+  {
+    "id": "discount",
+    "prompt": "The cart discount is losing the cents on every order: a 19.99 order comes back as 18 instead of 17.99. Can you fix it?",
+    "intent": "keep cents when applying a discount",
+    "allow": [
+      "src/cart.py"
+    ],
+    "expect_files": [
+      "src/cart.py"
+    ],
+    "check": "from src.cart import apply_discount; assert abs(apply_discount(19.99) - 17.99) < 1e-9"
+  },
+  {
+    "id": "name",
+    "prompt": "Rendering a customer with no last name raises a TypeError instead of just showing the first name. Can you fix it?",
+    "intent": "handle a missing last name",
+    "allow": [
+      "src/utils.py"
+    ],
+    "expect_files": [
+      "src/utils.py"
+    ],
+    "check": "from src.utils import format_name; assert format_name('Ada', None) == 'Ada'; assert format_name('Ada', 'L') == 'Ada L'"
+  },
+  {
+    "id": "retries",
+    "prompt": "Requests never retry on a flaky network. The retry count should default to 3. Can you fix it?",
+    "intent": "default the retry count to 3",
+    "allow": [
+      "src/config.py"
+    ],
+    "expect_files": [
+      "src/config.py"
+    ],
+    "check": "from src.config import RETRIES; assert RETRIES == 3"
+  }
+]

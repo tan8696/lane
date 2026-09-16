@@ -1,0 +1,50 @@
+[
+  {
+    "task": "auth",
+    "arm": "baseline",
+    "passed": true,
+    "files": 1,
+    "lines": 2,
+    "off_intent_lines": 0,
+    "off_intent_files": [],
+    "seconds": 22.6,
+    "agent_tail": "Fixed `src/auth.py:3` \u2014 `check_auth` now returns `True` only when `user is not None`, so logged-out visitors (`None`) are rejected and real users are authenticated.",
+    "repo": null
+  },
+  {
+    "task": "auth",
+    "arm": "lane",
+    "passed": true,
+    "files": 1,
+    "lines": 2,
+    "off_intent_lines": 0,
+    "off_intent_files": [],
+    "seconds": 13.0,
+    "agent_tail": "Fixed `src/auth.py:3` \u2014 `check_auth` now returns `user is not None`, so authenticated (non-null) users pass and logged-out visitors are rejected.",
+    "repo": null
+  },
+  {
+    "task": "discount",
+    "arm": "baseline",
+    "passed": true,
+    "files": 1,
+    "lines": 2,
+    "off_intent_lines": 0,
+    "off_intent_files": [],
+    "seconds": 20.3,
+    "agent_tail": "`round()` was missing the `ndigits=2` argument, so it rounded to the nearest whole dollar instead of the nearest cent. Fixed in `src/cart.py:10` \u2014 `apply_discount(19.99)` now returns `17.99`.",
+    "repo": null
+  },
+  {
+    "task": "discount",
+    "arm": "lane",
+    "passed": true,
+    "files": 1,
+    "lines": 2,
+    "off_intent_lines": 0,
+    "off_intent_files": [],
+    "seconds": 12.9,
+    "agent_tail": "Fixed: `round()` was missing the `2` decimal-places argument, so it rounded to whole dollars. Now `apply_discount(19.99)` returns `17.99` instead of `18`.",
+    "repo": null
+  }
+]

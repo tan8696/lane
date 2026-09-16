@@ -1,0 +1,54 @@
+[
+  {
+    "task": "name",
+    "arm": "baseline",
+    "passed": true,
+    "files": 1,
+    "lines": 4,
+    "off_intent_lines": 0,
+    "off_intent_files": [],
+    "seconds": 54.3,
+    "agent_tail": "The fix is small and self-evident, so I'll skip running it if approval isn't available.\n\nFixed `format_name` in `src/utils.py:5-8`: it now returns just `first` when `last` is falsy (`None` or empty), instead of calling `.strip()` on it and raising `TypeError`.",
+    "repo": null,
+    "error": null
+  },
+  {
+    "task": "name",
+    "arm": "lane",
+    "passed": true,
+    "files": 1,
+    "lines": 4,
+    "off_intent_lines": 0,
+    "off_intent_files": [],
+    "seconds": 31.5,
+    "agent_tail": "Fixed `format_name` in `src/utils.py` to return just the first name when `last` is `None`/empty, instead of crashing on `.strip()`.",
+    "repo": null,
+    "error": null
+  },
+  {
+    "task": "retries",
+    "arm": "baseline",
+    "passed": true,
+    "files": 1,
+    "lines": 2,
+    "off_intent_lines": 0,
+    "off_intent_files": [],
+    "seconds": 38.1,
+    "agent_tail": "t that isn't wired into anything. I've fixed the value itself (0 \u2192 3), which addresses the literal bug you pointed at, but there's no request loop in this codebase that consumes it. Let me know if you meant a different repo, or if you'd like me to add the actual retry logic that reads this constant.",
+    "repo": null,
+    "error": null
+  },
+  {
+    "task": "retries",
+    "arm": "lane",
+    "passed": false,
+    "files": 0,
+    "lines": 0,
+    "off_intent_lines": 0,
+    "off_intent_files": [],
+    "seconds": 9.9,
+    "agent_tail": "You've hit your session limit \u00b7 resets 2:30am (Asia/Kolkata)",
+    "repo": null,
+    "error": "usage limit"
+  }
+]

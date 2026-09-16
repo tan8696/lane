@@ -146,6 +146,21 @@ Can't launch on "−70% off-intent lines" without having measured it.
 
 **Exit:** a table worth defending on HN.
 
+**Status: harness done 2026-09-17, and it produced a negative result about the premise.** `bench/` runs each task twice (bare vs Lane) in a throwaway seeded repo and measures diff size, off-intent lines, task completion and wall time. Full method and caveats in `bench/README.md`.
+
+| arm | passed | off-intent lines/task | lines/task | sec/task |
+|---|---|---|---|---|
+| baseline | 4/4 | **0.0** | 2.5 | 33 |
+| lane | 3/3 | **0.0** | 2.7 | 21 |
+
+**The baseline never made a drive-by edit.** It ignored every piece of bait — the unused `import sys`, the `slugify` TODO, the trailing whitespace, `DEBUG = True`, the README typo. There were zero off-intent lines to remove, so **the "−70% off-intent lines" target cannot be claimed from this data and must not go into launch copy.** Lane cost nothing measurable: same pass rate, same diff size. (The speed difference is confounded — the Lane arm gets a pre-declared scope, so it explores less. Don't quote it.)
+
+This is not proof the problem is imaginary; the benchmark is stacked against finding it. Trivial single-line bugs in a 6-file repo, symptoms spelled out, most bait sitting *inside* the in-scope file where a tidy-up wouldn't even register, n=1 per cell, single-turn tasks, and a sandboxed runner that blocks the agent's own Bash — which removes exactly the formatter/`git checkout` class P2's detector was built for. `bench/README.md` lists what a real test needs.
+
+**Two consequences for P5.** The launch claim has to change from a reduction number to a guarantee: *a declared boundary and an audit trail of what was touched, at no measurable cost*. And the harness itself needed fixing — a run that dies on a usage limit or timeout is now tagged `error` and excluded rather than scored as "Lane broke the task", which is how a benchmark quietly lies to its author.
+
+**Unfinished:** one cell (`retries/lane`) hit an account usage limit and never ran; re-run it when the limit resets. The harder benchmark described in `bench/README.md` is the real P4 exit, and it is not built.
+
 ### P5 — Ship v0.1 (6–8 h, week 5)
 
 README plus a 30-second GIF (block, rescope, report), honest **Known Limits** section ("guardrail, not sandbox"), `v0.1.0` tag, marketplace install path tested from a clean machine, submit to awesome-claude-code lists, Show HN / r/ClaudeAI / X / Dev.to.

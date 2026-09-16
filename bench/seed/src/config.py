@@ -1,0 +1,3 @@
+TIMEOUT = 30
+RETRIES = 0
+DEBUG = True
