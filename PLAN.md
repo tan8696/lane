@@ -180,6 +180,14 @@ README plus a 30-second GIF (block, rescope, report), honest **Known Limits** se
 
 **Exit:** 50 installs, first external issue.
 
+**Status: prep done 2026-09-17, publishing is yours.** Shipped: `PROJECT.md` (what Lane is, what the evidence says, how it was built, what it does next), `CHANGELOG.md`, a "What it measurably does" table in the README, `docs/launch.md` with Show HN / Reddit / Dev.to drafts, and the `v0.1.0` tag (local — there is no remote).
+
+**Install path verified end to end:** `marketplace add` -> `install` (v0.1.0, user scope, enabled) -> `uninstall` -> `marketplace remove`, all clean. The installed copy lives under a versioned cache path (`.claude/plugins/cache/<marketplace>/lane/0.1.0/`), so relocatability was tested explicitly: the plugin runs from an arbitrary path and its deny message emits that relocated path, proving nothing is baked in. Lane was uninstalled again straight away, because a user-scope plugin loads in every session and would have contaminated the baseline arm of the benchmark running at the time.
+
+**The claim changed.** Launch copy is written to the guarantee (a declared boundary plus an audit trail, at no measurable cost), not to a reduction number. `docs/launch.md` says so explicitly at the top so the dead claim cannot creep back in.
+
+**Not done, and needs a human:** the 30-second demo capture, publishing the repo and pushing the tag, and the awesome-list submissions. All of those are outward-facing.
+
 ### P6 — Hunk-level + revert (12–16 h, weeks 6–8)
 
 Only after P5 shows people keep it installed.

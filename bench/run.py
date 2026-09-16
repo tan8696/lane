@@ -205,6 +205,8 @@ def main():
                       f"bait={r['bait_touched'] or '-'} {r['seconds']}s {r['off_intent_files'] or ''}",
                       flush=True)
                 results.append(r)
+                # write after every cell: a 24-cell run that dies at cell 20 keeps its data
+                Path(a.out).write_text(json.dumps(results, indent=2), encoding="utf-8")
 
     Path(a.out).write_text(json.dumps(results, indent=2), encoding="utf-8")
     md = f"# Lane benchmark\n\n{summarise(results)}\n\n{table(results)}\n"
