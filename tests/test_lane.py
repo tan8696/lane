@@ -5,9 +5,10 @@ from pathlib import Path
 S = Path(__file__).resolve().parent.parent / "plugins/lane/scripts"
 
 
-def run(script, payload=None, cwd=None, args=()):
+def run(script, payload=None, cwd=None, args=(), env=None):
     return subprocess.run([sys.executable, str(S / script), *args], input=json.dumps(payload or {}),
-                          capture_output=True, text=True, encoding="utf-8", cwd=cwd)
+                          capture_output=True, text=True, encoding="utf-8", cwd=cwd,
+                          env={**os.environ, **env} if env else None)
 
 
 class LaneTest(unittest.TestCase):
@@ -114,6 +115,32 @@ class LaneTest(unittest.TestCase):
         (self.d / "src/auth.py").write_text("x = 1   \n")  # in scope, whitespace-only
         self.assertEqual(run("stop_audit.py", {"cwd": str(self.d)}).stdout.strip(), "")
         self.assertIn("Whitespace-only (1)", self.report())
+
+    def test_suggests_scope_only_when_needed(self):
+        ask = {"cwd": str(self.d), "prompt": "the auth check is wrong", "source": "user"}
+        out = run("suggest_scope.py", ask).stdout
+        self.assertIn("src/auth.py", out)  # matched on filename
+        self.assertIn("declare --intent", out)
+        self.assertEqual(run("suggest_scope.py", dict(ask, source="system")).stdout.strip(), "")
+        self.declare("src/auth.py")
+        self.assertEqual(run("suggest_scope.py", ask).stdout.strip(), "")  # quiet once scoped
+
+    def test_report_has_summary_line(self):
+        self.declare("src/auth.py")
+        (self.d / "src/auth.py").write_text("x = 42\n")
+        run("stop_audit.py", {"cwd": str(self.d)})
+        self.assertIn("**Summary:** 1 on-intent, 0 unrelated", self.report())
+
+    def test_self_scope_gate(self):
+        cli = (S / "lane.py").as_posix()
+        def bash(cmd, env=None):
+            return run("pre_tool.py", {"tool_name": "Bash", "tool_input": {"command": cmd},
+                                       "cwd": str(self.d)}, env=env).stdout
+        declare = f'python "{cli}" declare --intent x --allow y'
+        self.assertIn('"ask"', bash(declare))  # attended: the user approves scope changes
+        self.assertEqual(bash(declare, {"LANE_ALLOW_SELF_SCOPE": "1"}).strip(), "")  # unattended
+        # disabling the guard is never self-approvable, flag or not
+        self.assertIn('"ask"', bash(f'python "{cli}" off', {"LANE_ALLOW_SELF_SCOPE": "1"}))
 
     def test_session_start(self):
         out = run("session_start.py", {"cwd": str(self.d)}).stdout

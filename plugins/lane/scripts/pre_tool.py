@@ -31,7 +31,13 @@ if MODE == "off":
 
 if tool == "Bash":
     cmd = ti.get("command", "")
-    if re.search(r"lane\.py\S*\s+(declare|expand|clear|off)\b", cmd):
+    m = re.search(r"lane\.py\S*\s+(declare|expand|clear|off)\b", cmd)
+    if m:
+        # Unattended runs have nobody to ask, so an agent could never declare its first scope.
+        # LANE_ALLOW_SELF_SCOPE=1 lets it declare/expand on its own — never `clear` or `off`,
+        # because disabling the guard is not the same as choosing a scope to work under.
+        if m.group(1) in ("declare", "expand") and os.environ.get("LANE_ALLOW_SELF_SCOPE") == "1":
+            sys.exit(0)
         decide("ask", f"Lane: approve scope change?\n{cmd}")  # agent can't self-approve
     raw = L.bash_write_targets(cmd, cwd)
 elif tool in L.FILE_TOOLS:

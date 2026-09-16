@@ -130,6 +130,12 @@ Friction is the product risk, not correctness.
 
 **Exit:** median task needs one approval and zero scope edits; scope-approvals-needing-edits under 30%.
 
+**Status: code done 2026-09-17, exit criterion needs real usage.** 15/15 tests green. Shipped: the `UserPromptSubmit` suggester, `/lane-scope`, `/lane-off`, a rewritten `/lane-report`, and a `**Summary:**` line at the top of the report so it pastes into a PR description as-is. The suggester stays silent unless this session has no usable scope *and* the prompt came from a human (`source == "user"`), because a hint on every message is the noise that gets plugins removed. On a test repo the prompt "the auth check is inverted…" produced exactly `src/auth.py` + `tests/test_auth.py` and correctly ignored `src/render.py`.
+
+**New finding — unattended runs could not declare a scope at all.** `declare`/`expand` always ask the user, so a headless agent deadlocks: it cannot make its first scope. Two ways out, both now supported: declare the scope before launching the agent (preferred in CI — the operator sets the boundary), or set `LANE_ALLOW_SELF_SCOPE=1`. The flag deliberately never covers `clear` or `off`. **P4's benchmark harness depends on this**, since 20 unattended tasks would otherwise all deadlock.
+
+**Not verified here:** whether an agent actually reads the suggestion and declares before its first edit. Nested `claude -p` runs inside this session's sandboxed shell, so the inner agent's own Bash calls get blocked by the outer sandbox, not by Lane — the loop has to be watched in a real terminal.
+
 ### P4 — Evidence (8–10 h, week 4)
 
 Can't launch on "−70% off-intent lines" without having measured it.

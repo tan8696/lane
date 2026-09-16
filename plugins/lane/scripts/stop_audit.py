@@ -39,7 +39,10 @@ def sec(title, xs):
     return f"\n### {title} ({len(xs)})\n" + ("".join(f"- `{x}`\n" for x in xs) or "- none\n")
 
 
-report = (f"## Lane scope report\n**Intent:** {scope['intent']}  \n**Allow:** {', '.join(scope['allow'])}\n"
+summary = (f"{len(on)} on-intent, {len(unrelated)} unrelated, {len(approved)} approved outside, "
+           f"{len(ws)} whitespace-only, {len(ignored)} ignored")
+report = (f"## Lane scope report\n**Intent:** {scope['intent']}  \n"
+          f"**Allow:** {', '.join(scope['allow'])}  \n**Summary:** {summary}\n"
           + sec("✅ On-intent", on) + sec("⚠️ Whitespace-only", ws)
           + sec("🟡 Approved outside scope", approved) + sec("❌ Unrelated", unrelated)
           + sec("🔇 Ignored (generated)", ignored)

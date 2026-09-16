@@ -38,6 +38,13 @@ python3 plugins/lane/scripts/lane.py off    # disable here
 
 `LANE_MODE` always overrides the per-repo setting, in both directions.
 
+Declaring or expanding a scope always asks the user, so an agent cannot quietly widen its own
+guardrails. Unattended runs have nobody to ask, which would leave an agent unable to declare its
+first scope — so either declare the scope before launching the agent (preferred in CI, the operator
+decides the boundary), or set `LANE_ALLOW_SELF_SCOPE=1` to let the agent declare and expand on its
+own. That flag never covers `clear` or `off`: disabling the guard is not the same as choosing a
+scope to work under.
+
 ## Workflow
 
 ```bash
