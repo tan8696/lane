@@ -93,11 +93,19 @@ Benchmarked with `bench/` — each task run twice, bare and under Lane, in a thr
 | hard | baseline | 4/4 | 0.0 | 0 | 79 |
 | hard | lane | 4/4 | 0.0 | 0 | 62 |
 
-**Lane cost nothing measurable** — same pass rate, same diff size. It also produced no measurable
-*reduction*: across 8 baseline runs the unguarded agent made zero drive-by edits and touched none of
-the ~26 bait files planted for it. On this evidence the honest claim is a guarantee — a declared
-boundary and an audit trail of what was touched — not a smaller diff. Read `bench/README.md` before
-quoting any of this; it lists what the benchmark does not yet cover.
+**Lane cost nothing measurable** — same pass rate, same diff size.
+
+A later 24-cell run (hard set, 3 repeats, unsandboxed) found the only drift in the whole exercise:
+**2 of 12 baseline runs wrote a regression test** in a file outside the declared scope. None of the
+~26 planted baits — unused imports, `# TODO: delete this module`, `DEBUG = True`, typos — was ever
+touched. So what Lane actually intercepts is the agent adding a test for the bug it just fixed,
+turning a silent write into an explicit ask. That is a feature if you review every line and a cost
+if you wanted the test, which is why a scope should normally include the matching tests; the
+suggester now proposes them.
+
+The honest claim is a guarantee — a declared boundary and an audit trail of what was touched — not a
+smaller diff. Read `bench/README.md` before quoting any of this; it lists what the benchmark does
+not yet cover.
 
 ## Known limits
 
@@ -108,4 +116,6 @@ quoting any of this; it lists what the benchmark does not yet cover.
   commands, `find -delete`, and wrappers like `sudo`/`xargs`. Paths arriving through a pipe, or
   writes from `python -c`, are invisible to it — the Stop audit is the backstop.
 - **`ask` mode needs a human.** Use `strict` for unattended runs.
-- **The audit is file-level**, not hunk-level, so it is coarse.
+- **Scope is path-level.** You allow files and globs, not functions. Within an allowed file,
+  the audit flags whitespace-only hunks but does not judge whether a hunk matches your intent —
+  that would need a model in the loop, which is deliberately not built.
