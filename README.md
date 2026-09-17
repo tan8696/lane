@@ -261,6 +261,10 @@ python -m unittest discover -s tests -t tests -v   # 22 tests, no deps
 
 Restart Claude Code after changing hooks; skill and command edits apply immediately.
 
+This repo has a committed `.lane/policy.json`, so **Lane guards its own development** — a
+fresh clone is already opted in, and `bench/results*.json` is off limits to any agent, because
+those are recorded measurements and nothing should be able to rewrite the evidence.
+
 Issues and PRs welcome — especially benchmark runs on other models, which is the gap this project
 most needs filled.
 
