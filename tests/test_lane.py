@@ -213,6 +213,16 @@ class LaneTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("Policy violations", r.stdout)
 
+    def test_report_renders_expansions_readably(self):
+        self.declare("src/auth.py")
+        run("lane.py", cwd=self.d,
+            args=["expand", "--allow", "src/db.py", "--reason", "shared helper lives here"])
+        (self.d / "src/auth.py").write_text("x = 42\n")
+        run("stop_audit.py", {"cwd": str(self.d)})
+        rep = self.report()
+        self.assertIn("> expanded `src/db.py`: shared helper lives here", rep)
+        self.assertNotIn("['src/db.py']", rep)  # not a raw Python list repr
+
     def test_session_start(self):
         out = run("session_start.py", {"cwd": str(self.d)}).stdout
         self.assertIn("declare --intent", out)

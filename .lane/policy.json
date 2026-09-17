@@ -1,0 +1,8 @@
+{
+  "never": [
+    "bench/results*.json",
+    ".github/workflows/**",
+    "LICENSE"
+  ],
+  "require_scope": false
+}

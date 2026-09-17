@@ -37,7 +37,8 @@ if ws_hunks:
                + "".join(f"- `{f}` ({len(h)} hunk{'s' if len(h) > 1 else ''})\n"
                          for f, h in sorted(ws_hunks.items()))
                + "\nDrop them with `lane.py revert --include-whitespace`.\n")
-report += "".join(f"\n> expanded {e['allow']}: {e['reason']}" for e in scope["expansions"])
+report += "".join("\n> expanded `" + "`, `".join(e["allow"]) + "`: " + e["reason"] + "\n"
+                  for e in scope["expansions"])
 (L.state_dir(root, create=True) / "report.md").write_text(report, encoding="utf-8")
 
 # block once; stop_hook_active prevents infinite loops.

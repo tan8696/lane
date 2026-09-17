@@ -121,13 +121,14 @@ Benchmarked with `bench/` — each task run twice, bare and under Lane, in a thr
 |---|---|---|---|---|---|
 | easy | baseline | 4/4 | 0.0 | 0 | 33 |
 | easy | lane | 3/3 | 0.0 | 0 | 21 |
-| hard | baseline | 4/4 | 0.0 | 0 | 79 |
-| hard | lane | 4/4 | 0.0 | 0 | 62 |
+| hard | baseline | 13/13 | **0.9** | 0 | 67 |
+| hard | lane | 12/12 | 0.0 | 0 | 55 |
 
-**Lane cost nothing measurable** — same pass rate, same diff size.
+**Lane cost nothing measurable** — same pass rate, same diff size. The hard rows aggregate every
+run including a 24-cell repeat (3 per cell, unsandboxed); the easy rows are a single pass.
 
-A later 24-cell run (hard set, 3 repeats, unsandboxed) found the only drift in the whole exercise:
-**2 of 12 baseline runs wrote a regression test** in a file outside the declared scope. None of the
+That 0.9 is not diffuse sloppiness. It is **2 of 13 baseline runs writing a regression test** in a
+file outside the declared scope, 6 lines each. None of the
 ~26 planted baits — unused imports, `# TODO: delete this module`, `DEBUG = True`, typos — was ever
 touched. So what Lane actually intercepts is the agent adding a test for the bug it just fixed,
 turning a silent write into an explicit ask. That is a feature if you review every line and a cost

@@ -29,14 +29,14 @@ outside the scope** (unused imports, a `# TODO: delete this module`, `DEBUG = Tr
 `except:`, README typos), and a **second turn** that asks the agent to "double-check nothing else is
 affected" — an invitation to look around, phrased as a request to check rather than to change.
 
-## Results (2026-09-17, Sonnet, n=1 per cell)
+## Results (2026-09-17, Sonnet; easy n=1, hard n=1 plus a 3-repeat run)
 
 | design | arm | passed | off-intent lines/task | lines/task | bait files touched | sec/task |
 |---|---|---|---|---|---|---|
 | easy | baseline | 4/4 | **0.0** | 2.5 | **0** | 33 |
 | easy | lane | 3/3 | **0.0** | 2.7 | **0** | 21 |
-| hard | baseline | 4/4 | **0.0** | 4.0 | **0** | 79 |
-| hard | lane | 4/4 | **0.0** | 4.0 | **0** | 62 |
+| hard | baseline | 13/13 | **0.9** | 4.0 | **0** | 67 |
+| hard | lane | 12/12 | **0.0** | 3.5 | **0** | 55 |
 
 One easy-set cell (`retries/lane`) hit an account usage limit and never ran; excluded, not scored.
 
@@ -89,15 +89,18 @@ enforce, happening without Lane.
 
 ### What this does and does not establish
 
-It does **not** prove the problem is imaginary. Still untested: other agents and older models, truly
-long autonomous sessions (these were 1-2 turns), repeats (n=1 per cell, so rare drift would be
-missed), and Bash-driven mutation — the runner is sandboxed, which blocks the agent's own shell
-commands. One transcript shows this directly: *"If you approve running pytest, I can confirm the
-suite passes."* Formatter and `git checkout` drive-bys, the class the P2 detector targets, therefore
-never had a chance to occur.
+It does **not** prove the problem is imaginary. Still untested: other agents and older models,
+genuinely long autonomous sessions (these were 1-2 turns), and larger n — 3 repeats catches a
+1-in-6 behaviour, not a 1-in-50 one.
 
-What it does establish, for this model on this kind of work: **Lane costs nothing measurable** —
-identical pass rate, identical diff size — and there is no diff reduction to claim.
+Two earlier caveats are now partly answered. The repeat run was **unsandboxed**, so the agent could
+run its own shell commands; no formatter or `git checkout` drive-by happened anyway, which is the
+class the P2 detector was built for. And repeats did surface drift the single pass missed, so n=1
+was indeed hiding something — just not the something that was expected.
+
+What it establishes, for this model on this kind of work: **Lane costs nothing measurable**
+(identical pass rate, same diff size) and buys a small, specific reduction — **0.9 off-intent lines
+per task down to 0.0** — all of which was the agent adding a regression test outside its scope.
 
 Honest claim: *"a declared boundary and an audit trail of what was touched, at no measurable cost."*
 Not: *"-70% off-intent lines."*
