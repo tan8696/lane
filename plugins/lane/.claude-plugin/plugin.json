@@ -2,7 +2,9 @@
   "name": "lane",
   "version": "0.1.0",
   "description": "Task-scoped edit guard for Claude Code: declare scope, enforce it on every write, audit the diff at the end.",
-  "author": { "name": "Tan" },
+  "author": { "name": "tan8696", "url": "https://github.com/tan8696" },
+  "homepage": "https://github.com/tan8696/lane",
+  "repository": "https://github.com/tan8696/lane",
   "license": "MIT",
-  "keywords": ["hooks", "scope", "guardrails", "diff", "review"]
+  "keywords": ["hooks", "scope", "guardrails", "diff", "review", "audit", "safety"]
 }

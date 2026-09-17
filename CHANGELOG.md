@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.1.0 — unreleased
+## v0.1.0
 
 First release. A task-scoped edit guard: declare what a task may touch, enforce it on every write,
 audit the diff at the end.
@@ -19,7 +19,7 @@ audit the diff at the end.
   once if anything is unrelated.
 - **Scope suggestions** — `UserPromptSubmit` proposes files from the prompt's keywords when the
   session has no scope yet, and stays quiet otherwise.
-- **Commands** — `/lane-report`, `/lane-scope`, `/lane-off`.
+- **Commands** — `/lane-init`, `/lane-scope`, `/lane-report`, `/lane-revert`, `/lane-off`.
 - **Session binding** — a scope belongs to the session that first used it; a second session is told
   to declare its own rather than inheriting.
 - **Unattended runs** — `LANE_ALLOW_SELF_SCOPE=1` lets an agent declare or expand without a human.

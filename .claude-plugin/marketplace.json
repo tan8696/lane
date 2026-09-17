@@ -1,6 +1,10 @@
 {
   "name": "lane-marketplace",
-  "owner": { "name": "Tan" },
+  "owner": {
+    "name": "tan8696",
+    "url": "https://github.com/tan8696"
+  },
+  "description": "Lane: a task-scoped edit guard for Claude Code.",
   "plugins": [
     {
       "name": "lane",
