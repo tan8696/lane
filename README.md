@@ -53,6 +53,8 @@ lane.py expand  --allow "src/utils/url.ts" --reason "redirect builder lives here
 lane.py show     # current mode + scope
 lane.py audit    # last scope report (also written to .git/lane/report.md)
 lane.py clear    # drop scope, keep the repo enabled
+lane.py revert   # dry run of what Lane would undo; --yes applies it,
+                 # --include-whitespace also drops drive-by reformat hunks
 ```
 
 State lives in `.git/lane/`, so it is per-repo and never committed.

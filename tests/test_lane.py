@@ -142,6 +142,35 @@ class LaneTest(unittest.TestCase):
         # disabling the guard is never self-approvable, flag or not
         self.assertIn('"ask"', bash(f'python "{cli}" off', {"LANE_ALLOW_SELF_SCOPE": "1"}))
 
+    def test_revert_dry_run_then_apply(self):
+        self.declare("src/auth.py")
+        (self.d / "src/auth.py").write_text("x = 42\n")          # in scope, keep
+        (self.d / "src/db.py").write_text("y = 999\n")           # unrelated, tracked
+        (self.d / "stray.txt").write_text("drive-by\n")          # unrelated, untracked
+        dry = run("lane.py", cwd=self.d, args=["revert"]).stdout
+        self.assertIn("restore", dry)
+        self.assertIn("delete", dry)
+        self.assertIn("dry run", dry)
+        self.assertEqual((self.d / "src/db.py").read_text(), "y = 999\n")  # unchanged by a dry run
+        run("lane.py", cwd=self.d, args=["revert", "--yes"])
+        self.assertEqual((self.d / "src/db.py").read_text(), "y = 2\n")    # restored
+        self.assertFalse((self.d / "stray.txt").exists())                  # deleted
+        self.assertEqual((self.d / "src/auth.py").read_text(), "x = 42\n")  # in-scope work kept
+
+    def test_whitespace_hunk_inside_scoped_file(self):
+        f = self.d / "src/wide.py"
+        f.write_text("def one():\n    return 1\n\n\ndef two():\n    return 2\n")
+        subprocess.run(["git", "add", "-A"], cwd=self.d, check=True)
+        subprocess.run(["git", "commit", "-qm", "wide"], cwd=self.d, check=True)
+        self.declare("src/wide.py")
+        # a real change at the top, a pure reformat at the bottom: two hunks, one file, in scope
+        f.write_text("def one():\n    return 111\n\n\ndef two():\n        return 2\n")
+        run("stop_audit.py", {"cwd": str(self.d)})
+        self.assertIn("Whitespace-only hunks inside on-intent files (1)", self.report())
+        out = run("lane.py", cwd=self.d, args=["revert", "--include-whitespace", "--yes"]).stdout
+        self.assertIn("unformat", out)
+        self.assertEqual(f.read_text(), "def one():\n    return 111\n\n\ndef two():\n    return 2\n")
+
     def test_session_start(self):
         out = run("session_start.py", {"cwd": str(self.d)}).stdout
         self.assertIn("declare --intent", out)

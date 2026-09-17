@@ -233,5 +233,66 @@ def bash_write_targets(cmd, cwd=None):
     return list(dict.fromkeys(t for t in targets if t and not t.startswith("/dev/")))
 
 
+def file_patch(root, f, context=0):
+    """Unified diff for one file. -U0 by default so each hunk is exactly the changed lines."""
+    return git(root, "diff", "-U%d" % context, "HEAD", "--", f).stdout
+
+
+def split_patch(patch):
+    """(header, [hunk, ...]) — header is everything before the first @@, needed to re-apply."""
+    lines = patch.splitlines(keepends=True)
+    i = next((n for n, l in enumerate(lines) if l.startswith("@@")), len(lines))
+    header, hunks, cur = "".join(lines[:i]), [], []
+    for l in lines[i:]:
+        if l.startswith("@@") and cur:
+            hunks.append("".join(cur))
+            cur = []
+        cur.append(l)
+    if cur:
+        hunks.append("".join(cur))
+    return header, hunks
+
+
+def hunk_ws_only(hunk):
+    """True when a hunk only moves whitespace around. Same idea as `git diff -w`, per hunk."""
+    plus = [l[1:] for l in hunk.splitlines() if l.startswith("+")]
+    minus = [l[1:] for l in hunk.splitlines() if l.startswith("-")]
+    if not (plus or minus):
+        return False
+    # join(split()) drops internal runs too, matching `git diff -w` rather than just trailing space
+    norm = lambda xs: [s for s in ("".join(x.split()) for x in xs) if s]  # noqa: E731
+    return norm(plus) == norm(minus)
+
+
+def git_apply_reverse(root, patch):
+    p = subprocess.run(["git", "apply", "-R", "--unidiff-zero", "-"], cwd=root,
+                       input=patch, capture_output=True, text=True)
+    return p.returncode == 0, p.stderr.strip()
+
+
+def classify(root, scope, touched):
+    """Bucket working-tree changes against a scope. Shared by the Stop audit and by `revert`,
+    so the report and the thing that undoes it can never disagree."""
+    ignore = IGNORE_DEFAULT | set(scope.get("ignore", []))
+    changed = (dirty_files(root) - set(scope.get("baseline_dirty", []))) | set(touched.get("files", []))
+    out = {"on": [], "ws": [], "approved": [], "unrelated": [], "ignored": [], "ws_hunks": {}}
+    for f in sorted(f for f in changed if not is_protected(f)):
+        if os.path.basename(f) in ignore:
+            out["ignored"].append(f)
+        elif f in touched.get("approved_outside", []):
+            out["approved"].append(f)
+        elif not in_scope(f, scope):
+            out["unrelated"].append(f)
+        elif whitespace_only(root, f):
+            out["ws"].append(f)
+        else:
+            out["on"].append(f)
+            # an in-scope file can still carry a drive-by reformat in one of its hunks
+            stray = [h for h in split_patch(file_patch(root, f))[1] if hunk_ws_only(h)]
+            if stray:
+                out["ws_hunks"][f] = stray
+    return out
+
+
 def now():
     return time.strftime("%Y-%m-%dT%H:%M:%S")

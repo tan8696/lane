@@ -15,24 +15,9 @@ scope = L.load_scope(root)
 if not scope or not L.session_ok(root, scope, data.get("session_id")):
     sys.exit(0)
 
-t = L.load_touched(root)
-changed = (L.dirty_files(root) - set(scope.get("baseline_dirty", []))) | set(t["files"])
-changed = {f for f in changed if not L.is_protected(f)}
-
-ignore = L.IGNORE_DEFAULT | set(scope.get("ignore", []))
-ignored = sorted(f for f in changed if os.path.basename(f) in ignore)
-changed -= set(ignored)
-
-on, ws, approved, unrelated = [], [], [], []
-for f in sorted(changed):
-    if f in t["approved_outside"]:
-        approved.append(f)
-    elif not L.in_scope(f, scope):
-        unrelated.append(f)
-    elif L.whitespace_only(root, f):
-        ws.append(f)
-    else:
-        on.append(f)
+c = L.classify(root, scope, L.load_touched(root))
+on, ws, approved, unrelated, ignored = c["on"], c["ws"], c["approved"], c["unrelated"], c["ignored"]
+ws_hunks = c["ws_hunks"]
 
 
 def sec(title, xs):
@@ -45,8 +30,14 @@ report = (f"## Lane scope report\n**Intent:** {scope['intent']}  \n"
           f"**Allow:** {', '.join(scope['allow'])}  \n**Summary:** {summary}\n"
           + sec("✅ On-intent", on) + sec("⚠️ Whitespace-only", ws)
           + sec("🟡 Approved outside scope", approved) + sec("❌ Unrelated", unrelated)
-          + sec("🔇 Ignored (generated)", ignored)
-          + "".join(f"\n> expanded {e['allow']}: {e['reason']}" for e in scope["expansions"]))
+          + sec("🔇 Ignored (generated)", ignored))
+if ws_hunks:
+    n = sum(len(v) for v in ws_hunks.values())
+    report += (f"\n### 🧹 Whitespace-only hunks inside on-intent files ({n})\n"
+               + "".join(f"- `{f}` ({len(h)} hunk{'s' if len(h) > 1 else ''})\n"
+                         for f, h in sorted(ws_hunks.items()))
+               + "\nDrop them with `lane.py revert --include-whitespace`.\n")
+report += "".join(f"\n> expanded {e['allow']}: {e['reason']}" for e in scope["expansions"])
 (L.state_dir(root, create=True) / "report.md").write_text(report, encoding="utf-8")
 
 # block once; stop_hook_active prevents infinite loops.
@@ -55,6 +46,6 @@ report = (f"## Lane scope report\n**Intent:** {scope['intent']}  \n"
 if unrelated and not data.get("stop_hook_active"):
     print(json.dumps({"decision": "block", "reason": (
         f"Lane audit: unrelated changes {unrelated}. "
-        "Revert them (`git checkout -- <file>`, or delete if new) unless the user asked for them. "
-        "If genuinely required, expand scope with a reason. Then finish.")}))
+        "Revert them (`lane.py revert`, or `git checkout -- <file>`) unless the user asked for "
+        "them. If genuinely required, expand scope with a reason. Then finish.")}))
 sys.exit(0)

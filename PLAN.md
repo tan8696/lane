@@ -201,6 +201,16 @@ Only after P5 shows people keep it installed.
 - Optional LLM judge: off by default, cheap model, cached, with `last_assistant_message` as free context.
 - Symbol scopes (tree-sitter) — lowest value per hour; do last.
 
+**Status: done 2026-09-17, with two of the four items deliberately cut.** 17/17 tests green.
+
+Built: `git diff -U0` parsing (`split_patch`, `hunk_ws_only`), a shared `classify()` used by *both* the Stop audit and `revert` so the report and the thing that undoes it can never disagree, a new report section for whitespace-only hunks inside on-intent files, and `lane.py revert` / `/lane-revert`.
+
+`revert` is a **dry run by default** and prints its plan; `--yes` applies it. It restores tracked unrelated files, deletes untracked ones, and with `--include-whitespace` reverse-applies just the reformat hunks inside files the task legitimately changed — the one thing a file-level audit cannot separate. It is gated in `pre_tool` like `clear`/`off`, and `LANE_ALLOW_SELF_SCOPE` deliberately does **not** cover it: an agent must never be able to destroy working-tree changes unattended.
+
+**Cut: the LLM judge.** P4 measured ~zero drive-by edits across 20 baseline runs, so a per-hunk judge would spend tokens and latency to confirm "all clean" almost every time. The heuristics already catch the one real case (reformatting). Revisit only if real usage shows hunks the heuristics misclassify.
+
+**Cut: symbol scopes (tree-sitter).** Highest effort in the phase, and the evidence does not show file-level scope being too coarse in practice. Nothing observed would have been prevented by symbol-level granularity.
+
 ### P7 — Team / CI (later, gated on traction)
 
 GitHub Action posting the scope report and failing on unrelated hunks; `.lane/policy.json` org rules; Codex adapter (verify its hook support first — if thin, wrap the CLI and set sandbox writable roots from the scope); dashboard. **Do not start before P5 proves retention.**

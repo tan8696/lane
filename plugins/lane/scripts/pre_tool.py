@@ -31,7 +31,7 @@ if MODE == "off":
 
 if tool == "Bash":
     cmd = ti.get("command", "")
-    m = re.search(r"lane\.py\S*\s+(declare|expand|clear|off)\b", cmd)
+    m = re.search(r"lane\.py\S*\s+(declare|expand|clear|off|revert)\b", cmd)
     if m:
         # Unattended runs have nobody to ask, so an agent could never declare its first scope.
         # LANE_ALLOW_SELF_SCOPE=1 lets it declare/expand on its own — never `clear` or `off`,
