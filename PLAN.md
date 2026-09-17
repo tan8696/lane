@@ -172,6 +172,10 @@ This is not proof the problem is imaginary; the benchmark is stacked against fin
 
 **What is still untested:** other agents and older models, genuinely long autonomous sessions (these were 1-2 turns), repeats (n=1 per cell, so rare drift is invisible), and Bash-driven mutation — the runner is sandboxed, so formatter and `git checkout` drive-bys, exactly the class P2's detector targets, never had a chance to happen. `--repeat` and `--model` are wired up for whoever runs it next.
 
+**UPDATE - the unsandboxed repeat run changes this.** 24 cells, 3 repeats, hard set, run outside the sandbox. Seven cells died on a usage limit and were correctly tagged `error` rather than scored as failures (without that harness fix this would have read as "Lane broke 4 tasks"); the whole `dedupe` task died and is untested. **Two of twelve baseline runs produced off-intent lines - both were the agent writing a regression test** in `tests/test_cart.py`, a file outside the scope and not one of the planted baits. Nothing touched the real bait.
+
+So what Lane measurably intercepts is not vandalism - it is **the agent adding a test for the bug it just fixed**, turned into an explicit ask: *"Want me to add one to `tests/test_cart.py`? That'd be a small scope expansion beyond `src/pricing.py`."* Whether that is a feature or a cost depends on whether you wanted the test. The fix is a product change, not a framing one: **a scope should usually include the matching tests**, and the suggester now proposes them.
+
 **Decision this forces before P5:** the reduction claim is dead, and the remaining honest pitch is a guarantee — a declared boundary plus an audit trail, at no measurable cost (identical pass rate, identical diff size). Whether that alone is worth launching is a product call, not a code one.
 
 ### P5 — Ship v0.1 (6–8 h, week 5)
