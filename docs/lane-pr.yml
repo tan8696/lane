@@ -1,0 +1,34 @@
+# Lane PR check — copy this to .github/workflows/lane.yml in the repo you want guarded.
+#
+# It checks every file a PR touches against:
+#   - .lane/policy.json  — repo-wide "never touch" rules (committed, not expandable by an agent)
+#   - .lane/scope.json   — the scope that was declared for this change (written by `lane.py export`)
+#
+# The report lands in the job summary, so no token and no comment permissions are needed. The job
+# fails when a file is outside the scope or forbidden by policy.
+
+name: lane
+on: pull_request
+
+jobs:
+  scope:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # lane ci needs the base ref to diff against
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch Lane
+        run: git clone --depth 1 https://github.com/YOUR-USER/lane-kit /tmp/lane
+
+      - name: Scope check
+        shell: bash
+        run: |
+          # pipefail matters: without it the exit code would come from tee, and every PR would pass
+          set -o pipefail
+          python /tmp/lane/plugins/lane/scripts/lane.py ci \
+            --base "origin/${{ github.base_ref }}" | tee -a "$GITHUB_STEP_SUMMARY"

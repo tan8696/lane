@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Lane CLI: init | off | declare | expand | show | audit | clear"""
+"""Lane CLI: init | off | declare | expand | show | audit | clear | revert | export | ci"""
 import argparse
+import json
 import os
 import sys
 
@@ -21,7 +22,10 @@ def main():
     r.add_argument("--yes", action="store_true", help="actually do it (default is a dry run)")
     r.add_argument("--include-whitespace", action="store_true",
                    help="also drop whitespace-only hunks inside on-intent files")
-    for n in ("show", "audit", "clear", "init", "off"):
+    c = sub.add_parser("ci")
+    c.add_argument("--base", help="base ref, e.g. origin/main")
+    c.add_argument("--require-scope", action="store_true", help="fail if no .lane/scope.json")
+    for n in ("show", "audit", "clear", "init", "off", "export"):
         sub.add_parser(n)
     a = p.parse_args()
 
@@ -60,6 +64,54 @@ def main():
         print("lane: no scope" if not s else
               f"intent: {s['intent']}\nallow: {s['allow']}\nexpansions: {len(s['expansions'])}\n"
               f"session: {s.get('session') or '(unbound until first edit)'}")
+    elif a.cmd == "export":
+        s = L.load_scope(root)
+        if not s:
+            sys.exit("lane: no scope declared")
+        (root / ".lane").mkdir(exist_ok=True)
+        (root / ".lane" / "scope.json").write_text(json.dumps(
+            {"intent": s["intent"], "allow": s["allow"], "expansions": s["expansions"]}, indent=2),
+            encoding="utf-8")
+        print("lane: wrote .lane/scope.json — commit it so CI can check the diff against it")
+    elif a.cmd == "ci":
+        # Runs in CI, where there is no session and no .git/lane state: everything it needs is
+        # committed (.lane/policy.json, .lane/scope.json) or in the diff itself.
+        rng = f"{a.base}...HEAD" if a.base else "HEAD~1...HEAD"
+        d = L.git(root, "diff", "--name-only", rng)
+        if d.returncode != 0:
+            sys.exit(f"lane: cannot diff {rng} ({d.stderr.strip()[:120]})")
+        # .lane/ is Lane's own committed metadata; it is never part of a task's scope
+        files = [f for f in d.stdout.splitlines() if f and not f.startswith(".lane/")]
+        policy = L.load_policy(root)
+        try:
+            declared = json.loads((root / ".lane" / "scope.json").read_text(encoding="utf-8"))
+        except (FileNotFoundError, NotADirectoryError, OSError, json.JSONDecodeError):
+            declared = None
+        bad = [(f, g) for f in files for g in (L.policy_denies(f, policy),) if g]
+        # a policy violation is the stronger statement; do not also list it as out-of-scope
+        banned = {f for f, _ in bad}
+        outside = ([f for f in files if f not in banned and not L.in_scope(f, declared)]
+                   if declared else [])
+        scope_line = (f"{declared['intent']} — `{'`, `'.join(declared['allow'])}`" if declared
+                      else "_none committed — run `lane.py export` and commit `.lane/scope.json`_")
+        out = f"## Lane PR check\n\n**Files changed:** {len(files)}  \n**Declared scope:** {scope_line}\n"
+        if bad:
+            out += f"\n### ❌ Policy violations ({len(bad)})\n"
+            out += "".join(f"- `{f}` — policy forbids `{g}`\n" for f, g in bad)
+        if outside:
+            out += f"\n### ❌ Outside the declared scope ({len(outside)})\n"
+            out += "".join(f"- `{f}`\n" for f in outside)
+        if declared and declared.get("expansions"):
+            out += "\n" + "".join(
+                "> expanded `" + "`, `".join(e["allow"]) + "`: " + e["reason"] + "\n"
+                for e in declared["expansions"])
+        if not (bad or outside):
+            out += "\n✅ Every changed file is inside the declared scope and allowed by policy.\n"
+        print(out)
+        if (a.require_scope or policy.get("require_scope")) and not declared:
+            print("❌ No `.lane/scope.json` committed, and a scope is required.")
+            sys.exit(1)
+        sys.exit(1 if (bad or outside) else 0)
     elif a.cmd == "revert":
         s = L.load_scope(root)
         if not s:

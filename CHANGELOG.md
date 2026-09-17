@@ -24,10 +24,20 @@ audit the diff at the end.
   to declare its own rather than inheriting.
 - **Unattended runs** — `LANE_ALLOW_SELF_SCOPE=1` lets an agent declare or expand without a human.
   It never covers `clear` or `off`.
+- **Hunk-level audit** — whitespace-only hunks inside otherwise on-intent files are reported
+  separately, and `lane.py revert` can reverse-apply just those hunks (`git apply -R`).
+- **`lane.py revert` / `/lane-revert`** — dry run by default; `--yes` applies; restores tracked
+  unrelated files, deletes untracked ones. Gated like `clear`/`off`, never self-approvable.
+- **Team policy** — a committed `.lane/policy.json` with `never` patterns that no scope can
+  expand past. Its presence also opts the repo in.
+- **PR check** — `lane.py ci --base <ref>` audits a branch diff against the policy and the
+  committed scope, prints markdown, exits non-zero on violations. `lane.py export` writes the
+  scope to commit. Workflow template in `docs/lane-pr.yml`.
 
 ### Notes
 
 - Requires git and Python 3.9+. No third-party dependencies. On Windows, hooks run through Git Bash.
-- Benchmarked against an unguarded baseline: identical pass rate and identical diff size, so Lane is
-  not measurably costly. It also produced no measurable *reduction*, because the baseline made no
-  drive-by edits to begin with. See `bench/README.md` before quoting any number.
+- Benchmarked against an unguarded baseline: identical pass rate and identical diff size, so Lane
+  is not measurably costly. Across 20 baseline runs the only off-intent writes were the agent adding
+  a regression test outside the declared scope — no reformatting, no renames, none of the planted
+  bait. See `bench/README.md` before quoting any number.

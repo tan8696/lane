@@ -82,6 +82,37 @@ Store alias stub (which sits on `PATH` but may refuse to run).
 python -m unittest discover -s tests -t tests -v
 ```
 
+## Teams: policy and the PR check
+
+Two files, both committed to the repo:
+
+**`.lane/policy.json`** — repo-wide rules no agent can expand away:
+
+```json
+{ "never": ["infra/**", "migrations/**"], "require_scope": true }
+```
+
+A committed policy also opts the repo in, so every developer's agent is guarded without each of
+them running `init`. A `never` path is refused at write time with a message that says so, and
+`expand` cannot override it — only a human editing the policy can.
+
+**`.lane/scope.json`** — the scope that was declared for this change. `lane.py export` writes it
+from the active session so you can commit it alongside the work.
+
+Then the PR check:
+
+```bash
+lane.py ci --base origin/main
+```
+
+It diffs the branch against the base, checks every touched file against the policy and the declared
+scope, prints a markdown report, and exits non-zero on a violation. Copy `docs/lane-pr.yml` into
+`.github/workflows/` to run it on every PR — the report goes to the job summary, so it needs no
+token and no comment permissions.
+
+This half of Lane is **agent-agnostic**: it reads the git diff, not the agent's tool calls, so it
+works the same for Codex, Cursor, or a human who forgot what they were doing.
+
 ## What it measurably does
 
 Benchmarked with `bench/` — each task run twice, bare and under Lane, in a throwaway seeded repo:

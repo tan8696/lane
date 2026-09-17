@@ -61,12 +61,38 @@ def state_dir(root, create=False):
     return d
 
 
+POLICY_FILE = ".lane/policy.json"
+
+
 def mode(root):
-    """off unless this repo opted in via `lane.py init`. An explicit LANE_MODE always wins."""
+    """off unless this repo opted in via `lane.py init`. An explicit LANE_MODE always wins.
+
+    A committed `.lane/policy.json` also counts as opting in: a team that checks a policy into the
+    repo wants it enforced for everyone, without each developer running `init`.
+    """
     m = (os.environ.get("LANE_MODE") or "").strip().lower()
     if m in MODES:
         return m
-    return "ask" if (state_dir(root) / "enabled").exists() else "off"
+    if (state_dir(root) / "enabled").exists() or (root / POLICY_FILE).exists():
+        return "ask"
+    return "off"
+
+
+def load_policy(root):
+    """Team policy, committed to the repo. Unlike a scope, nothing an agent does can widen it."""
+    try:
+        return json.loads((root / POLICY_FILE).read_text(encoding="utf-8"))
+    except (FileNotFoundError, NotADirectoryError, OSError, json.JSONDecodeError):
+        return {}
+
+
+def policy_denies(r, policy):
+    """The first `never` pattern this path matches, or None."""
+    for g in policy.get("never", []):
+        g = g[2:] if g.startswith("./") else g
+        if (g.endswith("/") and r.startswith(g)) or _glob_re(g).match(r):
+            return g
+    return None
 
 
 def session_ok(root, scope, sid):

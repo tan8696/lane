@@ -215,6 +215,14 @@ Built: `git diff -U0` parsing (`split_patch`, `hunk_ws_only`), a shared `classif
 
 GitHub Action posting the scope report and failing on unrelated hunks; `.lane/policy.json` org rules; Codex adapter (verify its hook support first — if thin, wrap the CLI and set sandbox writable roots from the scope); dashboard. **Do not start before P5 proves retention.**
 
+**Status: done 2026-09-17, minus the two items that needed users or another agent.** 21/21 tests green.
+
+Built: `.lane/policy.json` with `never` patterns enforced at write time and un-expandable by design (an agent is told it is a repo-wide rule and that only a human can change it); a committed policy also opts the repo in, so a team enforces it once rather than per developer. `lane.py export` writes the declared scope to `.lane/scope.json` for committing. `lane.py ci --base <ref>` diffs the branch, checks every file against both policy and scope, prints markdown and exits non-zero on a violation. `docs/lane-pr.yml` is the workflow template — it reports into the job summary, so it needs no token, and it sets `pipefail` because otherwise `tee` would swallow the failure and every PR would pass.
+
+**The insight worth keeping:** this half of Lane is agent-agnostic. `lane ci` reads the git diff, not tool calls, so it already covers Codex, Cursor or a human — which is most of what a per-agent adapter would have bought.
+
+**Deferred: the Codex adapter.** Its hook API could not be verified from here, and with `ci` covering the team case, an adapter only adds pre-write blocking — the part the evidence values least. **Cut: the dashboard**, which needs hosting and users, and there are none yet.
+
 ---
 
 ## 5. Changes from the original roadmap

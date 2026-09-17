@@ -51,6 +51,14 @@ if not paths:
 if any(L.is_protected(r) for r in paths):
     decide("deny", "Lane: writes to .git/ are not allowed.")
 
+policy = L.load_policy(root)
+for r in paths:
+    g = L.policy_denies(r, policy)
+    if g:
+        decide("deny", f"Lane policy: {r} is off limits ({L.POLICY_FILE} forbids '{g}'). "
+                       "This is a repo-wide rule, not a task scope — it cannot be expanded away. "
+                       "If the change is genuinely needed, a human has to edit the policy.")
+
 scope = L.load_scope(root)
 if not scope:
     decide("deny", f'Lane: no scope declared. First run:\n{L.RUN} declare --intent "..." --allow "<glob>"')

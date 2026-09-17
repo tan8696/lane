@@ -171,6 +171,48 @@ class LaneTest(unittest.TestCase):
         self.assertIn("unformat", out)
         self.assertEqual(f.read_text(), "def one():\n    return 111\n\n\ndef two():\n    return 2\n")
 
+    def policy(self, text):
+        (self.d / ".lane").mkdir(exist_ok=True)
+        (self.d / ".lane/policy.json").write_text(text, encoding="utf-8")
+
+    def test_policy_cannot_be_expanded_away(self):
+        self.policy('{"never": ["infra/**", "src/db.py"]}')
+        self.declare("src/", "infra/")  # a scope that tries to allow the forbidden paths
+        self.assertEqual(self.pre("Edit", {"file_path": str(self.d / "src/db.py")}), "deny")
+        self.assertEqual(self.pre("Write", {"file_path": str(self.d / "infra/main.tf")}), "deny")
+        self.assertEqual(self.pre("Edit", {"file_path": str(self.d / "src/auth.py")}), "pass")
+
+    def test_committed_policy_opts_the_repo_in(self):
+        run("lane.py", cwd=self.d, args=["off"])  # no .git/lane/enabled marker
+        self.assertEqual(self.pre("Edit", {"file_path": str(self.d / "src/auth.py")}), "pass")
+        self.policy('{"never": []}')  # a committed policy means the team wants this enforced
+        self.assertEqual(self.pre("Edit", {"file_path": str(self.d / "src/auth.py")}), "deny")
+
+    def test_ci_checks_the_pr_diff(self):
+        self.declare("src/auth.py")
+        run("lane.py", cwd=self.d, args=["export"])
+        (self.d / "src/auth.py").write_text("x = 42\n")
+        subprocess.run(["git", "add", "-A"], cwd=self.d, check=True)
+        subprocess.run(["git", "commit", "-qm", "fix"], cwd=self.d, check=True)
+        ok = run("lane.py", cwd=self.d, args=["ci", "--base", "HEAD~1"])
+        self.assertEqual(ok.returncode, 0, ok.stdout)
+        self.assertIn("Every changed file is inside", ok.stdout)
+
+        (self.d / "src/db.py").write_text("y = 3\n")  # a file the scope never allowed
+        subprocess.run(["git", "commit", "-aqm", "stray"], cwd=self.d, check=True)
+        bad = run("lane.py", cwd=self.d, args=["ci", "--base", "HEAD~2"])
+        self.assertEqual(bad.returncode, 1)
+        self.assertIn("Outside the declared scope", bad.stdout)
+        self.assertIn("src/db.py", bad.stdout)
+
+    def test_ci_flags_policy_violations(self):
+        self.policy('{"never": ["src/db.py"]}')
+        (self.d / "src/db.py").write_text("y = 9\n")
+        subprocess.run(["git", "commit", "-aqm", "touch db", "--no-verify"], cwd=self.d, check=True)
+        r = run("lane.py", cwd=self.d, args=["ci", "--base", "HEAD~1"])
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("Policy violations", r.stdout)
+
     def test_session_start(self):
         out = run("session_start.py", {"cwd": str(self.d)}).stdout
         self.assertIn("declare --intent", out)

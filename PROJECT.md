@@ -3,7 +3,7 @@
 **A task-scoped edit guard for Claude Code.** The agent declares which files a task needs, writes
 outside that scope are blocked, and the final diff is audited against the declared intent.
 
-Status: v0.1.0, unreleased. Phases P0–P4 complete, 15/15 tests green, benchmarked.
+Status: v0.1.0, unreleased. Phases P0-P7 complete, 21/21 tests green, benchmarked.
 
 ---
 
@@ -47,9 +47,15 @@ So the honest claim is **not** "−70% off-intent lines". There was nothing to r
 supports is: **Lane costs nothing measurable** — identical pass rate, identical diff size — and what
 it gives you is a declared boundary plus an audit trail of what was touched.
 
-Still untested: other agents and older models, genuinely long autonomous sessions, repeats at scale,
-and Bash-driven mutation (the sandboxed runner blocked the agent's own shell, so formatter and
-`git checkout` drive-bys never had a chance to occur). See `bench/README.md`.
+**A later 24-cell run (3 repeats, unsandboxed) found the only drift in the exercise:** 2 of 12
+baseline runs wrote a regression test in a file outside the scope. None of the planted bait was ever
+touched. So what Lane intercepts in practice is the agent adding a test for the bug it just fixed,
+turning a silent write into an explicit ask — a feature if you review every line, a cost if you
+wanted the test. Hence: a scope should normally include the matching tests, and the suggester now
+proposes them.
+
+Still untested: other agents and older models, genuinely long autonomous sessions, and repeats at
+larger n. See `bench/README.md`.
 
 ## 3. How it works
 
@@ -73,7 +79,7 @@ user gives a task
 | `pre_tool.py` | PreToolUse | check every write against the scope | **yes** |
 | `post_tool.py` | PostToolUse | log touched files, record user-approved exceptions | no |
 | `stop_audit.py` | Stop | classify the diff, write the report, block once | **yes** |
-| `lane.py` | CLI via Bash | init / off / declare / expand / show / audit / clear | — |
+| `lane.py` | CLI via Bash | init / off / declare / expand / show / audit / clear / revert / export / ci | — |
 
 **State** lives in `.git/lane/`, so it is per-repo and never committed. `scope.json` holds the
 intent, the allow list, the files that were already dirty before the task started (so the user's own
@@ -92,6 +98,9 @@ in both directions.
 | **P2** Correctness | Scopes bound to the session that first uses them; formatter and working-tree `git` detection; lockfiles ignored by the audit; whitespace-only changes warn instead of blocking. |
 | **P3** Friction | Scope suggester on UserPromptSubmit; `/lane-scope`, `/lane-off`, `/lane-report`; a summary line that makes the report paste-ready; `LANE_ALLOW_SELF_SCOPE` for unattended runs. |
 | **P4** Evidence | The benchmark above, and the finding that the headline claim cannot be supported. |
+| **P5** Ship prep | `PROJECT.md`, `CHANGELOG.md`, evidence in the README, launch drafts, `v0.1.0` tag. Install path verified end to end, including that the plugin still works when relocated to a versioned cache path. |
+| **P6** Hunk-level | `git diff -U0` parsing and a shared `classify()` used by both the audit and `revert`; whitespace-only hunks inside on-intent files reported separately; `lane.py revert` (dry run by default) to restore, delete or reverse-apply just the reformat hunks. |
+| **P7** Teams | A committed `.lane/policy.json` of `never` paths that no scope can expand past (and whose presence opts the repo in); `lane.py export` to commit the declared scope; `lane.py ci --base <ref>` to audit a PR diff against both; a workflow template in `docs/lane-pr.yml`. |
 
 ### Decisions worth knowing
 
@@ -112,16 +121,21 @@ in both directions.
 
 ## 5. What it will do next
 
-- **P5 Ship** — README with a recorded demo, CHANGELOG, `v0.1.0` tag, publish the marketplace repo,
-  launch posts. The claim has to be the guarantee, not a reduction number.
-- **P6 Hunk-level** — classify each hunk of `git diff -U0` rather than each file; `/lane-revert` to
-  drop flagged hunks with `git apply -R`; an optional cheap-model judge, off by default.
-- **P7 Teams** — a GitHub Action that posts the scope report on a PR and fails on unrelated hunks;
-  an org policy file (`never allow infra/`, `migrations/`); a Codex adapter.
+P5 (ship prep), P6 (hunk-level audit and `revert`) and P7 (team policy and the PR check) are done;
+what is left is publishing and evidence, not code.
 
-Given the P4 result, P7's PR check is arguably the strongest remaining reason for this to exist: a
-team gets a machine-readable statement of what a change was allowed to touch, and proof it stayed
-inside it.
+- **Publish** — record the demo, push the repo and the `v0.1.0` tag, submit to the awesome lists.
+  Drafts are in `docs/launch.md`, written to the guarantee rather than a reduction number.
+- **More evidence** — other models, genuinely long autonomous sessions, and repeats at scale.
+  `bench/run.py --repeat N --model X` is wired for it.
+- **Deferred: the Codex adapter.** Its hook API could not be verified from here, and the team half
+  of Lane already works for any agent — `lane ci` reads the git diff, not the agent's tool calls.
+  A per-agent adapter only buys pre-write blocking, which the evidence values least.
+- **Cut: the LLM hunk judge and symbol-level scopes.** The measured drive-by rate does not justify
+  a model in the audit loop, and nothing observed needed sub-file granularity.
+
+Given the P4 result, the PR check is the strongest reason for this to exist: a team gets a
+machine-readable statement of what a change was allowed to touch, and proof it stayed inside it.
 
 ## 6. Repo layout
 
